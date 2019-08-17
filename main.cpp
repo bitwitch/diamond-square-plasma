@@ -8,7 +8,7 @@ class Demo : public olc::PixelGameEngine
 private: 
     f32 **grid;
     int WIDTH, HEIGHT;
-    int N;
+    f32 plasmaTime = 220.0;
 
 private:
 
@@ -25,15 +25,12 @@ private:
         return outputStart + round(slope * (input - inputStart));
     }
 
-    f32** allocateGrid(int N) {
-        //int gridSize = (int)(pow(2, N) + 1);
-        int gridSize = N;
-
-        f32 **grid = new f32*[gridSize];
+    f32** allocateGrid(int h, int w) {
+        f32 **grid = new f32*[h];
         
-        for (int y=0; y<gridSize; y++) {
-            grid[y] = new f32[gridSize];
-            for (int x=0; x<gridSize; x++) {
+        for (int y = 0; y < h; y++) {
+            grid[y] = new f32[w];
+            for (int x = 0; x < w; x++) {
                 grid[y][x] = 0;
             }
         }
@@ -51,6 +48,13 @@ private:
     {
         int iX = (x + WIDTH) % WIDTH;
         int iY = (y + HEIGHT) % HEIGHT;
+
+        if (value < -1.0) { 
+            value = -1.0; 
+        } else if (value > 1.0) { 
+            value = -1.0; 
+        }
+
         grid[iY][iX] = value;
     } 
 
@@ -68,7 +72,7 @@ private:
         f32 c = sample(x - hs, y + hs);
         f32 d = sample(x + hs, y + hs);
      
-        setSample(x, y, ((a + b + c + d) / 4.0) + randval);
+        setSample(x, y, ((a + b + c + d) / 4.0) + randval*0.5);
     }
 
     void sampleDiamond(int x, int y, int size, f32 randval)
@@ -85,7 +89,7 @@ private:
         f32 c = sample(x, y - hs);
         f32 d = sample(x, y + hs);
      
-        setSample(x, y, ((a + b + c + d) / 4.0) + randval);
+        setSample(x, y, ((a + b + c + d) / 4.0) + randval*0.5);
     }   
 
     void DiamondSquare(int stepsize, double scale)
@@ -110,21 +114,19 @@ private:
 
 public:
     Demo() {
-        sAppName = "Demo";
+        sAppName = "Plasma";
     }
 
     // Init
     bool OnUserCreate() override {
-        SetPixelMode(olc::Pixel::ALPHA);
         HEIGHT = ScreenHeight();
         WIDTH = ScreenWidth(); 
-        grid = allocateGrid(HEIGHT);
+        grid = allocateGrid(HEIGHT, WIDTH);
 
-        int featuresize = HEIGHT / 2;
-
+        int featuresize = HEIGHT / 4;
         for(int y = 0; y < HEIGHT; y += featuresize)  
             for(int x = 0; x < WIDTH; x += featuresize) 
-                setSample(x, y, frand()*2.0);
+                setSample(x, y, frand());
 
         int samplesize = featuresize;
         f32 scale = 1.0;
@@ -139,8 +141,8 @@ public:
         for(int y = 0; y < HEIGHT; y++) { 
             for(int x = 0; x < WIDTH; x++) { 
                 f32 current = sample(x, y);
-                int colorVal = (int)mapRange(current, -2.0, 2.0, 0.0, 255.0);
-                Draw(x, y, olc::Pixel(colorVal, colorVal, colorVal, 255));
+                int colorVal = (int)mapRange(current, -1.0, 1.0, 0.0, 255.0);
+                Draw(x, y, olc::Pixel(colorVal, colorVal/3, colorVal/4));
             }
         }
 
@@ -149,14 +151,26 @@ public:
 
     // Update
     bool OnUserUpdate(float fElapsedTime) override {
-        //Clear(olc::BLACK);
-        //for (int y=0; y<HEIGHT; y++) {
-        //    for (int x=0; y<WIDTH; x++) {
-        //        int gridValue = (int)sample(x, y);
-        //        Draw(x, y, olc::Pixel(0, 0, gridValue % 255));
-        //    }
-        //}
-        return true;
+        plasmaTime += fElapsedTime * 4.0;
+        
+        if (plasmaTime > 290.0) {
+            plasmaTime = 220.0;
+        }
+
+        Clear(olc::BLACK);
+        for(int y = 0; y < HEIGHT; y++) { 
+            for(int x = 0; x < WIDTH; x++) { 
+                f32 current = sample(x, y);
+                int colorVal = (int)mapRange(current, -1.0, 1.0, 0.0, 255.0);
+                colorVal = plasmaTime * colorVal;
+                if (x == 100 && y == 100) {
+                    printf("time = %f, colorVal = %d\n", plasmaTime, colorVal);
+                }
+                Draw(x, y, olc::Pixel(colorVal, colorVal, colorVal));
+            }
+        }
+
+       return true;
     }
 
     bool OnUserDestroy() override {
@@ -171,11 +185,9 @@ public:
 
 int main(int argc, char const *argv[]) {
     srand(time(NULL));
-    
-    int gridSize = 32;
 
 	Demo demo;
-	if (demo.Construct(gridSize*4, gridSize*4, 4, 4))
+	if (demo.Construct(1024, 512, 1, 1))
 		demo.Start();
 	return 0;
 }
